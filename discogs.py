@@ -1,7 +1,7 @@
 # PYTHON 3.2.2
 
-
 # Discogs Record Collection GUI V 0.1a
+# now in version control!
 
 import curses, traceback, string, os, xml.dom.minidom
 from xml.dom.minidom import parse
