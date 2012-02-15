@@ -18,6 +18,8 @@ MAX_X = None
 
 SPLIT_X = None
 
+SEARCHINPUT = None
+
 ## Data Processing Classes and Functions
 class entry(object):
     # Entry Class to get all variables for each entry
@@ -146,116 +148,46 @@ def print_sorted(userChoice, alpha, release, MAX_Y, MAX_X):
     # print out the types in whatever order the users asks for
     if userChoice == 'artist up':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['artistUp']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'artist down':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['artistDown']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'title up':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['titleUp']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'title down':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['titleDown']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'year up':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['yearUp']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'year down':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['yearDown']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'format up':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['formatUp']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     elif userChoice == 'format down':
         yPos = 1
         artistWin.erase()
@@ -267,18 +199,24 @@ def print_sorted(userChoice, alpha, release, MAX_Y, MAX_X):
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
     else:
         print('bad type')
 
 def show_collection(release):
-    searchHits = return_matches("Vinyl", release)
+    searchHits = return_matches(SEARCHINPUT, release)
     alphaDict = sort_items(searchHits)
+    artistWin.erase()
+    titleWin.erase()
+    yearWin.erase()
+    genreWin.erase()
+    formatWin.erase()
     print_sorted('title down', alphaDict, release, MAX_Y, MAX_X)
+    artistWin.refresh()
+    titleWin.refresh()
+    yearWin.refresh()
+    genreWin.refresh()
+    formatWin.refresh()
+
 
 ## UI Section Functions
 
@@ -296,30 +234,36 @@ def menus_setup(menus):
         topbar_key_handler((str.lower(menu_hotkey), menu[1]))
     screen.refresh()
 
+
 def topbar_key_handler(key_assign=None, key_dict={}):
-    # magic I stole from gnosis.cx                                               
+    # magic I stole from gnosis.cx
+    global SEARCHINPUT
     if key_assign:                
         key_dict[ord(key_assign[0])] = key_assign[1]
     else:
-        c = screen.getch()
-        if c in (curses.KEY_END, ord('!')):
-            return 0
-        elif c not in key_dict.keys():
-            curses.beep()
+        curses.echo()
+        screen.addstr(1, MAX_X-21, " "*20)
+        screen.refresh()
+        c = str(screen.getstr(1, MAX_X-20), encoding='utf8')
+        
+        screen.addstr(5, 5, c)
+        curses.noecho()
+        screen.refresh()
+        if ord(c[0]) not in key_dict.keys() or len(c) > 1:
+            SEARCHINPUT = c
             return CONTINUE
+        elif ord(c[0]) in (curses.KEY_END, ord('!')) and len(c) == 1:
+            return 0
         else:
-            return key_dict[c]()
+            return key_dict[ord(c[0])]()
 
 def rm_col(MAX_Y, MAX_X):
     # erase old right box edge when window gets resized
-    screen.addstr(10,10,str(MAX_X))
     for yPos in range(1, MAX_Y-1):
         screen.delch(yPos, MAX_X-1)
 
 def rm_row(MAX_Y, MAX_X):
     # erase old bottom box edge when window gets resized
-    screen.addstr(10,10,str(MAX_Y))
-    screen.move(MAX_Y-1, 1)
     screen.deleteln()
 
 def exit_func():
@@ -373,8 +317,6 @@ def main(stdscr):
     screen = stdscr.subwin(MAX_Y,MAX_X,0,0)
     screen.box()
     screen.hline(2, 1, curses.ACS_HLINE, MAX_X-2)
-    screen.addstr(30, 10, str(MAX_Y))
-    screen.addstr(31, 10, str(MAX_X))
     screen.refresh()
 
     # define menus
