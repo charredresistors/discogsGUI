@@ -1,4 +1,4 @@
-# PYTHON 3.2.2
+#! /bin/python3.2
 
 # Discogs Record Collection GUI V 0.1a
 # now in version control!
@@ -19,6 +19,7 @@ MAX_X = None
 SPLIT_X = None
 
 SEARCHINPUT = None
+INPUTTYPE = 'artist up'
 
 ## Data Processing Classes and Functions
 class entry(object):
@@ -190,33 +191,32 @@ def print_sorted(userChoice, alpha, release, MAX_Y, MAX_X):
                 yPos += 1
     elif userChoice == 'format down':
         yPos = 1
-        artistWin.erase()
-        titleWin.erase()
-        yearWin.erase()
-        genreWin.erase()
-        formatWin.erase()
         for listPoint in alpha['formatDown']:     # print all the hits
             if yPos < MAX_Y-3:
                 print_entry(listPoint.return_releaseId(), release, yPos)
                 yPos += 1
     else:
-        print('bad type')
-
-def show_collection(release):
-    searchHits = return_matches(SEARCHINPUT, release)
-    alphaDict = sort_items(searchHits)
+        return CONTINUE
+def erase_hits():
     artistWin.erase()
     titleWin.erase()
     yearWin.erase()
     genreWin.erase()
     formatWin.erase()
-    print_sorted('title down', alphaDict, release, MAX_Y, MAX_X)
+
+def refresh_hits():
     artistWin.refresh()
     titleWin.refresh()
     yearWin.refresh()
     genreWin.refresh()
     formatWin.refresh()
 
+def show_collection(release):
+    searchHits = return_matches(SEARCHINPUT, release)
+    alphaDict = sort_items(searchHits)
+    erase_hits()
+    print_sorted(INPUTTYPE, alphaDict, release, MAX_Y, MAX_X)
+    refresh_hits()
 
 ## UI Section Functions
 
@@ -244,13 +244,15 @@ def topbar_key_handler(key_assign=None, key_dict={}):
         curses.echo()
         screen.addstr(1, MAX_X-21, " "*20)
         screen.refresh()
-        c = str(screen.getstr(1, MAX_X-20), encoding='utf8')
-        
+        c = str(screen.getstr(1, MAX_X-20), encoding='utf8') 
         screen.addstr(5, 5, c)
         curses.noecho()
         screen.refresh()
-        if ord(c[0]) not in key_dict.keys() or len(c) > 1:
+        if len(c) == 0:
+            return CONTINUE
+        elif ord(c[0]) not in key_dict.keys() or len(c) > 1:
             SEARCHINPUT = c
+            show_collection(release)
             return CONTINUE
         elif ord(c[0]) in (curses.KEY_END, ord('!')) and len(c) == 1:
             return 0
@@ -272,14 +274,15 @@ def exit_func():
 
 def file_func():
     # file menu for exiting, exiting, etc.
+    global INPUTTYPE
     fMenu = curses.newwin(6,20,2,1)
     fMenu.box()
     fMenu.addstr(1,2, "W", hotkey_attr)
     fMenu.addstr(1,3, "rite Something", menu_attr)
     fMenu.addstr(2,2, "C", hotkey_attr)
     fMenu.addstr(2,3, "lear", menu_attr)
-    fMenu.addstr(3,2, "S", hotkey_attr)
-    fMenu.addstr(3,3, "how Collection", menu_attr)
+    fMenu.addstr(3,2, "T", hotkey_attr)
+    fMenu.addstr(3,3, "ype", menu_attr)
     fMenu.refresh()
     set_menu = True
     while set_menu == True:
@@ -291,17 +294,58 @@ def file_func():
             screen.refresh()
             set_menu = False
         elif c in (ord('C'), ord('c')):
-            artistWin.erase()
-            titleWin.erase()
-            yearWin.erase()
-            genreWin.erase()
-            formatWin.erase()
+            erase_hits()
             screen.move(1,23)
             fMenu.erase()
             screen.refresh()
             set_menu = False
-        elif c in (ord('S'), ord('s')):
-            show_collection(release)
+        elif c in (ord('T'), ord('t')):
+            fMenu.addstr(3, 7, "->", menu_attr)
+            fMenu.refresh()
+            typeMenu = curses.newwin(10, 18, 4, 10)
+            typeMenu.box()
+            typeMenu.addstr(1, 2, "1", hotkey_attr)
+            typeMenu.addstr(1, 3, " Artist Up", menu_attr)
+            typeMenu.addstr(2, 2, "2", hotkey_attr)
+            typeMenu.addstr(2, 3, " Artist Down", menu_attr)
+            typeMenu.addstr(3, 2, "3", hotkey_attr)
+            typeMenu.addstr(3, 3, " Title Up", menu_attr)
+            typeMenu.addstr(4, 2, "4", hotkey_attr)
+            typeMenu.addstr(4, 3, " Title Down", menu_attr)
+            typeMenu.addstr(5, 2, "5", hotkey_attr)
+            typeMenu.addstr(5, 3, " Year Up", menu_attr)
+            typeMenu.addstr(6, 2, "6", hotkey_attr)
+            typeMenu.addstr(6, 3, " Year Down")
+            typeMenu.addstr(7, 2, "7", hotkey_attr)
+            typeMenu.addstr(7, 3, " Format Up", menu_attr)
+            typeMenu.addstr(8, 2, "8", hotkey_attr)
+            typeMenu.addstr(8, 3, " Format Down", menu_attr)
+            t = typeMenu.getch()
+            if t == ord('1'):
+                INPUTTYPE = 'artist up'
+                show_collection(release)
+            elif t ==ord('2'):
+                INPUTTYPE = 'artist down'
+                show_collection(release)
+            elif t == ord('3'):
+                INPUTTYPE = 'title up'
+                show_collection(release)
+            elif t == ord('4'):
+                INPUTTYPE = 'title down'
+                show_collection(release)
+            elif t == ord('5'):
+                INPUTTYPE = 'year up'
+                show_collection(release)
+            elif t == ord('6'):
+                INPUTTYPE = 'year down'
+                show_collection(release)
+            elif t == ord('7'):
+                INPUTTYPE = 'format up'
+                show_collection(release)
+            elif t == ord('8'):
+                INPUTTYPE = 'format down'
+                show_collection(release)
+            typeMenu.erase()
             fMenu.erase()
             screen.refresh()
             set_menu = False
@@ -361,11 +405,7 @@ def main(stdscr):
         genreWin = screen.subwin(MAX_Y-3, SPLIT_X, 3, 3*SPLIT_X+1)
         formatWin = screen.subwin(MAX_Y-3, SPLIT_X-2, 3, 4*SPLIT_X+1)
         screen.refresh()
-        artistWin.refresh()
-        titleWin.refresh()
-        yearWin.refresh()
-        genreWin.refresh()
-        formatWin.refresh()
+        refresh_hits()
 
 if __name__=='__main__':
     try:
@@ -379,7 +419,6 @@ if __name__=='__main__':
 
         # make the cursor invisible
         curses.curs_set(0)
-
 
         # in keypad mode, escape sequences for special keys
         # (like the cursor keys) will be interpreted and
