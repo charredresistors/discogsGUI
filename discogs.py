@@ -18,11 +18,16 @@ MAX_X = None
 
 SPLIT_X = None
 
-SEARCHINPUT = None
+SEARCHINPUT = ''
 
 INPUTTYPE = 'artist up'
 
 POS = 0
+LINESEL = 0
+BOTTOMLINE = 0
+TOPLINE = 0
+
+MENUSIZE = 0
 
 ## Data Processing Classes and Functions
 class entry(object):
@@ -209,32 +214,52 @@ def erase_hits():
 
 def refresh_hits():
     global artistWin, titleWin, yearWin, genreWin, formatWin
-    artistWin.refresh(POS, 0, 3, 1, MAX_Y-3, SPLIT_X)
-    titleWin.refresh(POS, 0, 3, SPLIT_X+1, MAX_Y-3, 2*SPLIT_X)
-    yearWin.refresh(POS, 0, 3, 2*SPLIT_X+1, MAX_Y-3, 3*SPLIT_X)
-    genreWin.refresh(POS, 0, 3, 3*SPLIT_X+1, MAX_Y-3, 4*SPLIT_X)
-    formatWin.refresh(POS, 0, 3, 4*SPLIT_X+1, MAX_Y-3, MAX_X-1)
+    artistWin.refresh(POS, 0, 3, 1, MAX_Y-1, SPLIT_X+5)
+    titleWin.refresh(POS, 0, 3, SPLIT_X+6, MAX_Y-1, 2*SPLIT_X+10)
+    yearWin.refresh(POS, 0, 3, 2*SPLIT_X+11, MAX_Y-1, 3*SPLIT_X+6)
+    genreWin.refresh(POS, 0, 3, 3*SPLIT_X+7, MAX_Y-1, 4*SPLIT_X+3)
+    formatWin.refresh(POS, 0, 3, 4*SPLIT_X+4, MAX_Y-1, MAX_X-1)
+
+def set_select_line():
+    global artistWin, titleWin, yearWin, genreWin, formatWin
+    artistWin.chgat(LINESEL, 0, curses.A_STANDOUT)
+    titleWin.chgat(LINESEL, 0, curses.A_STANDOUT)
+    yearWin.chgat(LINESEL, 0, curses.A_STANDOUT)
+    genreWin.chgat(LINESEL, 0, curses.A_STANDOUT)
+    formatWin.chgat(LINESEL, 0, curses.A_STANDOUT)
+
+def unselect_line():
+    global artistWin, titleWin, yearWin, genreWin, formatWin
+    artistWin.chgat(LINESEL, 0, curses.A_NORMAL)
+    titleWin.chgat(LINESEL, 0, curses.A_NORMAL)
+    yearWin.chgat(LINESEL, 0, curses.A_NORMAL)
+    genreWin.chgat(LINESEL, 0, curses.A_NORMAL)
+    formatWin.chgat(LINESEL, 0, curses.A_NORMAL)
+
 
 def show_collection(release):
-    searchHits = return_matches(SEARCHINPUT, release)
+    if SEARCHINPUT == "":
+        searchHits = return_matches(SEARCHINPUT, release, True)
+    else:
+        searchHits = return_matches(SEARCHINPUT, release)
     alphaDict = sort_items(searchHits)
     erase_hits()
-    if SEARCHINPUT != '':
-        print_sorted(INPUTTYPE, alphaDict, release)
+    print_sorted(INPUTTYPE, alphaDict, release)
     refresh_hits()
 
 ## UI Section Functions
 
 def menus_setup(menus):
     # create the top menu for selecting things
-    left = 2
+    global MENUSIZE
+    MENUSIZE = 2
     for menu in menus:
         menu_name = menu[0]
         menu_hotkey = menu_name[0]
         menu_no_hot = menu_name[1:]
-        screen.addstr(1, left, menu_hotkey, hotkey_attr)
-        screen.addstr(1, left+1, menu_no_hot, menu_attr)
-        left = left + len(menu_name)+3
+        screen.addstr(1, MENUSIZE, menu_hotkey, hotkey_attr)
+        screen.addstr(1, MENUSIZE+1, menu_no_hot, menu_attr)
+        MENUSIZE = MENUSIZE + len(menu_name)+3
         topbar_key_handler((str.upper(menu_hotkey), menu[1]))
         topbar_key_handler((str.lower(menu_hotkey), menu[1]))
     screen.refresh()
@@ -243,77 +268,146 @@ def menus_setup(menus):
 def topbar_key_handler(key_assign=None, key_dict={}):
     # magic I stole from gnosis.cx
     global SEARCHINPUT
-    global POS
+    global POS, LINESEL
+    global TOPLINE, BOTTOMLINE
+    global MAX_Y, MAX_X
     if key_assign:                
         key_dict[ord(key_assign[0])] = key_assign[1]
     else:
-        screen.addstr(1, MAX_X-21, " "*20)
-        screen.refresh()
-        curserPos =  MAX_X-20
-        curserMin = curserPos
-        screen.move(1, curserPos)
-        c = screen.getch()
+        screen.addstr(1, MENUSIZE + 1," " * ((MAX_X-2) - MENUSIZE))
+#        screen.addstr(1, MAX_X-21, " "*20)
+        curserPos =  MAX_X-40
+        curserChange = 0
+        curserNewPos = curserPos
+        curserMin = 0
+        screen.move(1, curserNewPos)
         userInput = ''
+        SEARCHINPUT = userInput
+        show_collection(release)
+        screen.refresh()
+        TOPLINE = 0
+        BOTTOMLINE = MAX_Y-4
+        c = screen.getch()
         while c != 10: # 10 is the enter key
-            if c == curses.KEY_DOWN: 
-                POS += 1
+#            screen.addstr(2,15,str(c)) use to tell what number = what key
+            new_y, new_x = check_screen_size()
+            if (new_y, new_x) != (MAX_Y, MAX_X):
+                MAX_Y, MAX_X = new_y, new_x
+                change_screen_size()
+                screen.addstr(1, MENUSIZE + 1," " * ((MAX_X-2) - MENUSIZE))
+            curserPos =  MAX_X-40
+            curserNewPos = curserPos + curserChange
+            screen.move(1, curserNewPos)
+            screen.addstr(1, curserPos, userInput)
+            if c == curses.KEY_DOWN and (artistWin.instr(MAX_Y-4 + POS, 1, \
+                                         1).decode("utf-8") != ' '):
+                unselect_line()
+                LINESEL += 1
+                set_select_line()
                 refresh_hits()
-                screen.move(1, curserPos)
+                screen.move(1, curserNewPos)
+                if LINESEL > BOTTOMLINE:
+                    TOPLINE += 1
+                    BOTTOMLINE += 1
+                    POS += 1
+                    refresh_hits()
                 c = screen.getch()
             elif c == curses.KEY_UP and POS > 0:
-                POS -= 1
+                unselect_line()
+                LINESEL -= 1
+                set_select_line()
                 refresh_hits()
-                screen.move(1, curserPos)
+                screen.move(1, curserNewPos)
+                if LINESEL < TOPLINE:
+                    TOPLINE -= 1
+                    BOTTOMLINE -= 1
+                    POS -= 1
                 c = screen.getch()
             elif c == curses.KEY_UP and POS == 0:
                 refresh_hits()        
-                screen.move(1, curserPos)
+                screen.move(1, curserNewPos)
+                c = screen.getch()
+            elif c == curses.KEY_NPAGE and (artistWin.instr(MAX_Y-5 + POS, 1, \
+                                            1).decode("utf-8") != ' '):
+                POS += MAX_Y-5
+                refresh_hits()
+                screen.move(1, curserNewPos)
+                c = screen.getch()
+            elif c == curses.KEY_PPAGE and POS > 0:
+                POS -= MAX_Y-5
+                refresh_hits()
+                screen.move(1, curserNewPos)
+                c = screen.getch()
+            elif c == curses.KEY_PPAGE and POS == 0:
+                refresh_hits()        
+                screen.move(1, curserNewPos)
                 c = screen.getch()
             elif c == 127: # 127 is backspace
-                if curserPos > curserMin:
+                if curserChange > curserMin:
                     userInput = userInput[:-1]
-                    curserPos -= 1
-                    screen.move(1, curserPos)
+                    curserChange -= 1
+                    curserNewPos = curserPos + curserChange 
+                    screen.move(1, curserNewPos)
                     screen.addch(' ') # del character
                     screen.refresh()
-                    screen.move(1, curserPos)
+                    screen.move(1, curserNewPos)
                     SEARCHINPUT = userInput
                     show_collection(release)
                     c = screen.getch()
-                elif curserPos == curserMin: 
+                elif curserChange == curserMin: 
                     userInput = ''
-                    SEARCHINPUT = userInput
-                    show_collection(release)
                     c = screen.getch()
+            elif c == 6:
+                return key_dict[ord('f')]() # ctrl + f = file menu
+            elif c == 5:
+                exMenu = curses.newwin(8, 15, 10, 15)
+                exMenu.box()
+                exMenu.addstr(3, 5, 'Exit??')
+                exMenu.addstr(4, 5, 'y OR n')
+                exMenu.refresh()
+                d = exMenu.getch()
+                if d == ord('y'):
+                    return key_dict[ord('e')]() # ctrl + f = file menu
+                elif d == ord('n'):
+                    exMenu.erase()
+                    refresh_hits()
+                    c = screen.getch()
+                else:
+                    d = exMenu.getch()
             elif c < 257: 
                 userInput += chr(c)
-                screen.addch(1, curserPos, chr(c))
+                screen.addstr(1, curserPos, userInput)
                 screen.refresh()
-                curserPos += 1
-                screen.move(1, curserPos)
+                curserChange += 1
+                curserNewPos = curserPos + curserChange
+                screen.move(1, curserNewPos)
                 SEARCHINPUT = userInput
                 show_collection(release)
                 c = screen.getch()
             else:
                 c = screen.getch()
-        # c = str(screen.getstr(1, MAX_X-20), encoding='utf8')  
         screen.refresh()
-        if len(userInput) == 0:
-            return CONTINUE
-        elif ord(userInput[0]) not in key_dict.keys() or len(userInput) > 1:
-            SEARCHINPUT = userInput
-            show_collection(release)
-            return CONTINUE
-        elif ord(userInput[0]) in (curses.KEY_END, ord('!')) and \
-                len(userInput) == 1:
-            return 0
-        else:
-            return key_dict[ord(userInput[0])]()
+        return CONTINUE
+
+# all from original code.  last line returns based on key using the key
+# dicts.  useful for autosetting up of menus which isn't used right now
+# but could be useful for future changes if new menues need to be added.
+        # if len(userInput) == 0:
+        #     return CONTINUE
+        # elif ord(userInput[0]) not in key_dict.keys() or len(userInput) > 1:
+        #     SEARCHINPUT = userInput
+        #     show_collection(release)
+        #     return CONTINUE
+        # elif ord(userInput[0]) in (curses.KEY_END, ord('!')) and \
+        #         len(userInput) == 1:
+        #     return 0
+        # else:
+        #     return key_dict[ord(userInput[0])]()
 
 
 def rm_col(MAX_Y, MAX_X):
     # erase old right box edge when window gets resized
-    for yPos in range(1, MAX_Y-1):
+    for yPos in range(1, 3):
         screen.delch(yPos, MAX_X-1)
 
 def rm_row(MAX_Y, MAX_X):
@@ -323,6 +417,25 @@ def rm_row(MAX_Y, MAX_X):
 def exit_func():
     # exit function
     return EXIT
+
+def check_screen_size():
+    # check the size of the screen to see if it's changed
+    new_y, new_x = stdscr.getmaxyx()
+    if (new_y, new_x) != (MAX_Y, MAX_X):
+        if new_x > MAX_X:
+            rm_col(MAX_Y, MAX_X)
+        if new_y > MAX_Y:
+            rm_row(MAX_Y, MAX_X)
+    return new_y, new_x
+
+def change_screen_size():
+    global SPLIT_X
+    SPLIT_X = int(MAX_X/5)
+    curses.resizeterm(MAX_Y, MAX_X)
+    screen.box()
+    screen.hline(2, 1, curses.ACS_HLINE, MAX_X-2)
+    screen.refresh()
+    refresh_hits()
 
 def file_func():
     # file menu for exiting, exiting, etc.
@@ -433,37 +546,17 @@ def main(stdscr):
     release = get_release_info(dom) # get list of all objects with data filled in
 
     # set up subwindow "pads"
-    artistWin = curses.newpad(len(release), 256)
-    titleWin = curses.newpad(len(release), 256)
-    yearWin = curses.newpad(len(release), 256)
-    genreWin = curses.newpad(len(release), 256)
-    formatWin = curses.newpad(len(release), 256)
+    artistWin = curses.newpad(len(release) + 256, 256)
+    titleWin = curses.newpad(len(release) + 256, 256)
+    yearWin = curses.newpad(len(release) + 256, 256)
+    genreWin = curses.newpad(len(release) + 256, 256)
+    formatWin = curses.newpad(len(release) + 256, 256)
 
     #topbar menu loop
     while topbar_key_handler():
-        new_y, new_x = stdscr.getmaxyx()
-        if (new_y, new_x) != (MAX_Y, MAX_X):
-            if new_x > MAX_X:
-                rm_col(MAX_Y, MAX_X)
-            if new_y > MAX_Y:
-                rm_row(MAX_Y, MAX_X)
+        new_y, new_x = check_screen_size()
         MAX_Y, MAX_X = new_y, new_x
-        SPLIT_X = int(MAX_X/5)
-        curses.resizeterm(MAX_Y, MAX_X)
-        artistWin.refresh(POS, 0, 3, 1, MAX_Y-3, SPLIT_X)
-        titleWin.refresh(POS, 0, 3, SPLIT_X+1, MAX_Y-3, 2*SPLIT_X)
-        yearWin.refresh(POS, 0, 3, 2*SPLIT_X+1, MAX_Y-3, 3*SPLIT_X)
-        genreWin.refresh(POS, 0, 3, 3*SPLIT_X+1, MAX_Y-3, 4*SPLIT_X)
-        formatWin.refresh(POS, 0, 3, 4*SPLIT_X+1, MAX_Y-3, MAX_X-1)
-        screen.box()
-        screen.hline(2, 1, curses.ACS_HLINE, MAX_X-2)
-        screen.refresh()
-        # artistWin = curses.newpad(MAX_Y-3, SPLIT_X, 3, 1)
-        # titleWin = curses.newpad(MAX_Y-3, SPLIT_X, 3, SPLIT_X+1)
-        # yearWin = curses.newpad(MAX_Y-3, SPLIT_X, 3, 2*SPLIT_X+1)
-        # genreWin = curses.newpad(MAX_Y-3, SPLIT_X, 3, 3*SPLIT_X+1)
-        # formatWin = curses.newpad(MAX_Y-3, SPLIT_X-2, 3, 4*SPLIT_X+1)
-        refresh_hits()
+        change_screen_size()
 
 if __name__=='__main__':
     try:
