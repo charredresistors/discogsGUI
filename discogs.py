@@ -146,7 +146,7 @@ def return_matches(userInput, release, printAll = False):
 ## UI and Data Interaction Functions
 
 def print_entry(releaseId, release, lineNum):
-    # print out the entry in a semi-pretty format
+    # print out the entry in the "pad" windows
     global POS
     POS = 0
     for item in release:
@@ -206,6 +206,7 @@ def print_sorted(userChoice, alpha, release):
         return CONTINUE
 
 def erase_hits():
+    # clear the "pads"
     artistWin.erase()
     titleWin.erase()
     yearWin.erase()
@@ -213,6 +214,7 @@ def erase_hits():
     formatWin.erase()
 
 def refresh_hits():
+    # refresh the pads based based on the POS global to move up and down
     global artistWin, titleWin, yearWin, genreWin, formatWin
     artistWin.refresh(POS, 0, 3, 1, MAX_Y-1, SPLIT_X+5)
     titleWin.refresh(POS, 0, 3, SPLIT_X+6, MAX_Y-1, 2*SPLIT_X+10)
@@ -221,6 +223,7 @@ def refresh_hits():
     formatWin.refresh(POS, 0, 3, 4*SPLIT_X+4, MAX_Y-1, MAX_X-1)
 
 def set_select_line():
+    # set the selected line based on LINESEL
     global artistWin, titleWin, yearWin, genreWin, formatWin
     artistWin.chgat(LINESEL, 0, curses.A_STANDOUT)
     titleWin.chgat(LINESEL, 0, curses.A_STANDOUT)
@@ -229,6 +232,7 @@ def set_select_line():
     formatWin.chgat(LINESEL, 0, curses.A_STANDOUT)
 
 def unselect_line():
+    # unselect a line based on LINESEL
     global artistWin, titleWin, yearWin, genreWin, formatWin
     artistWin.chgat(LINESEL, 0, curses.A_NORMAL)
     titleWin.chgat(LINESEL, 0, curses.A_NORMAL)
@@ -238,9 +242,10 @@ def unselect_line():
 
 
 def show_collection(release):
-    if SEARCHINPUT == "":
+    # do the search and print out hits to the screen
+    if SEARCHINPUT == "": # print all hits if there is no search string
         searchHits = return_matches(SEARCHINPUT, release, True)
-    else:
+    else: # search the search string
         searchHits = return_matches(SEARCHINPUT, release)
     alphaDict = sort_items(searchHits)
     erase_hits()
@@ -287,9 +292,11 @@ def topbar_key_handler(key_assign=None, key_dict={}):
         screen.refresh()
         TOPLINE = 0
         BOTTOMLINE = MAX_Y-4
+        LINESEL = 0
         c = screen.getch()
         while c != 10: # 10 is the enter key
 #            screen.addstr(2,15,str(c)) use to tell what number = what key
+            # resize screen on the fly
             new_y, new_x = check_screen_size()
             if (new_y, new_x) != (MAX_Y, MAX_X):
                 MAX_Y, MAX_X = new_y, new_x
@@ -299,8 +306,12 @@ def topbar_key_handler(key_assign=None, key_dict={}):
             curserNewPos = curserPos + curserChange
             screen.move(1, curserNewPos)
             screen.addstr(1, curserPos, userInput)
-            if c == curses.KEY_DOWN and (artistWin.instr(MAX_Y-4 + POS, 1, \
+            set_select_line()
+            refresh_hits()
+            screen.refresh()
+            if c == curses.KEY_DOWN and (artistWin.instr(LINESEL + 1, 1, \
                                          1).decode("utf-8") != ' '):
+                # key down and push down selection so long as next line is not empty
                 unselect_line()
                 LINESEL += 1
                 set_select_line()
@@ -312,33 +323,56 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                     POS += 1
                     refresh_hits()
                 c = screen.getch()
-            elif c == curses.KEY_UP and POS > 0:
+            elif c == curses.KEY_UP and POS >= 0: # key up and move selection
+                if LINESEL == 0:
+                    screen.move(1, curserNewPos)
+                else:  
+                    unselect_line()
+                    LINESEL -= 1
+                    set_select_line()
+                    refresh_hits()
+                if LINESEL <= TOPLINE and POS > 0:
+                    TOPLINE -= 1
+                    BOTTOMLINE -= 1
+                    POS -= 1
+                c = screen.getch()
+            elif c == curses.KEY_UP and POS == 0: # key up until top
                 unselect_line()
                 LINESEL -= 1
                 set_select_line()
                 refresh_hits()
                 screen.move(1, curserNewPos)
-                if LINESEL < TOPLINE:
+                if LINESEL == TOPLINE:
                     TOPLINE -= 1
                     BOTTOMLINE -= 1
-                    POS -= 1
                 c = screen.getch()
-            elif c == curses.KEY_UP and POS == 0:
+            elif c == curses.KEY_UP and POS == 0: # key up until top
                 refresh_hits()        
                 screen.move(1, curserNewPos)
                 c = screen.getch()
             elif c == curses.KEY_NPAGE and (artistWin.instr(MAX_Y-5 + POS, 1, \
                                             1).decode("utf-8") != ' '):
+                # page down until there are no more hits
+                unselect_line()
                 POS += MAX_Y-5
+                LINESEL += MAX_Y-5
+                TOPLINE += MAX_Y-5
+                BOTTOMLINE += MAX_Y-5
+                set_select_line()
                 refresh_hits()
                 screen.move(1, curserNewPos)
                 c = screen.getch()
-            elif c == curses.KEY_PPAGE and POS > 0:
+            elif c == curses.KEY_PPAGE and POS > 0: # page up
+                unselect_line()
                 POS -= MAX_Y-5
+                LINESEL -= MAX_Y-5
+                TOPLINE -= MAX_Y-5
+                BOTTOMLINE -= MAX_Y-5
+                set_select_line()
                 refresh_hits()
                 screen.move(1, curserNewPos)
                 c = screen.getch()
-            elif c == curses.KEY_PPAGE and POS == 0:
+            elif c == curses.KEY_PPAGE and POS == 0: # keep the page up from going too far
                 refresh_hits()        
                 screen.move(1, curserNewPos)
                 c = screen.getch()
@@ -359,7 +393,7 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                     c = screen.getch()
             elif c == 6:
                 return key_dict[ord('f')]() # ctrl + f = file menu
-            elif c == 5:
+            elif c == 5: # ctrl + e = bring up exit window
                 exMenu = curses.newwin(8, 15, 10, 15)
                 exMenu.box()
                 exMenu.addstr(3, 5, 'Exit??')
@@ -374,7 +408,7 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                     c = screen.getch()
                 else:
                     d = exMenu.getch()
-            elif c < 257: 
+            elif c < 257: # get the key from the keyboard for search
                 userInput += chr(c)
                 screen.addstr(1, curserPos, userInput)
                 screen.refresh()
@@ -383,6 +417,11 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                 screen.move(1, curserNewPos)
                 SEARCHINPUT = userInput
                 show_collection(release)
+                LINESEL = 0
+                POS = 0
+                TOPLINE = 0
+                BOTTOMLINE = MAX_Y-4
+                refresh_hits()
                 c = screen.getch()
             else:
                 c = screen.getch()
@@ -429,6 +468,7 @@ def check_screen_size():
     return new_y, new_x
 
 def change_screen_size():
+    # quite literal
     global SPLIT_X
     SPLIT_X = int(MAX_X/5)
     curses.resizeterm(MAX_Y, MAX_X)
@@ -452,18 +492,18 @@ def file_func():
     set_menu = True
     while set_menu == True:
         c = fMenu.getch()
-        if c in (ord('W'), ord('w')):
+        if c in (ord('W'), ord('w')): # useless
             screen.addstr(10,10, "Well Hot Damn")
             screen.move(1,23)
             fMenu.erase()
             screen.refresh()
             set_menu = False
-        elif c in (ord('C'), ord('c')):
+        elif c in (ord('C'), ord('c')): # useless
             erase_hits()
             screen.move(1,23)
             fMenu.erase()
             set_menu = False
-        elif c in (ord('T'), ord('t')):
+        elif c in (ord('T'), ord('t')): # file menu, only important one right now
             fMenu.addstr(3, 7, "->", menu_attr)
             fMenu.refresh()
             typeMenu = curses.newwin(10, 18, 4, 10)
@@ -485,6 +525,9 @@ def file_func():
             typeMenu.addstr(8, 2, "8", hotkey_attr)
             typeMenu.addstr(8, 3, " Format Down", menu_attr)
             t = typeMenu.getch()
+            # sort submenu options.  sets INPUTTYPE to change hits on the screen to 
+            # desired order.  specifically changes print_sorted() to match the new
+            # input
             if t == ord('1'):
                 INPUTTYPE = 'artist up'
                 show_collection(release)
