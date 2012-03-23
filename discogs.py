@@ -302,6 +302,10 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                 MAX_Y, MAX_X = new_y, new_x
                 change_screen_size()
                 screen.addstr(1, MENUSIZE + 1," " * ((MAX_X-2) - MENUSIZE))
+                BOTTOMLINE = TOPLINE + MAX_Y-4
+                if LINESEL > BOTTOMLINE: # see if the line select went off screen during resize
+                    unselect_line()
+                    LINESEL = BOTTOMLINE 
             curserPos =  MAX_X-40
             curserNewPos = curserPos + curserChange
             screen.move(1, curserNewPos)
@@ -317,44 +321,46 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                 set_select_line()
                 refresh_hits()
                 screen.move(1, curserNewPos)
-                if LINESEL > BOTTOMLINE:
+                if LINESEL > BOTTOMLINE: # move the screen down if beyond screen
                     TOPLINE += 1
                     BOTTOMLINE += 1
                     POS += 1
                     refresh_hits()
                 c = screen.getch()
             elif c == curses.KEY_UP and POS >= 0: # key up and move selection
-                if LINESEL == 0:
+                if LINESEL == 0: # is the line at the very top?  do nothing
                     screen.move(1, curserNewPos)
-                else:  
+                else:  # move up the selection
                     unselect_line()
                     LINESEL -= 1
                     set_select_line()
                     refresh_hits()
-                if LINESEL <= TOPLINE and POS > 0:
-                    TOPLINE -= 1
-                    BOTTOMLINE -= 1
+                if LINESEL < TOPLINE and POS > 0: #is the line greater than the top?
+                    TOPLINE -= 1                  # but not at the very top? 
+                    BOTTOMLINE -= 1               # move screen up
                     POS -= 1
+                    refresh_hits()
                 c = screen.getch()
-            elif c == curses.KEY_UP and POS == 0: # key up until top
-                unselect_line()
-                LINESEL -= 1
-                set_select_line()
-                refresh_hits()
-                screen.move(1, curserNewPos)
-                if LINESEL == TOPLINE:
-                    TOPLINE -= 1
-                    BOTTOMLINE -= 1
-                c = screen.getch()
-            elif c == curses.KEY_UP and POS == 0: # key up until top
-                refresh_hits()        
-                screen.move(1, curserNewPos)
-                c = screen.getch()
+            # pretty sure i dont need any of the below
+            # elif c == curses.KEY_UP and POS == 0: # key up until very top
+            #     unselect_line()
+            #     LINESEL -= 1
+            #     set_select_line()
+            #     refresh_hits()
+            #     screen.move(1, curserNewPos)
+            #     if LINESEL == TOPLINE:
+            #         TOPLINE -= 1
+            #         BOTTOMLINE -= 1
+            #     c = screen.getch()
+            # elif c == curses.KEY_UP and POS == 0: # key up until top
+            #     refresh_hits()        
+            #     screen.move(1, curserNewPos)
+            #     c = screen.getch()
             elif c == curses.KEY_NPAGE and (artistWin.instr(MAX_Y-5 + POS, 1, \
                                             1).decode("utf-8") != ' '):
                 # page down until there are no more hits
                 unselect_line()
-                POS += MAX_Y-5
+                POS += MAX_Y-5 # MAX_Y-5 is how much each screen moves
                 LINESEL += MAX_Y-5
                 TOPLINE += MAX_Y-5
                 BOTTOMLINE += MAX_Y-5
@@ -368,14 +374,20 @@ def topbar_key_handler(key_assign=None, key_dict={}):
                 LINESEL -= MAX_Y-5
                 TOPLINE -= MAX_Y-5
                 BOTTOMLINE -= MAX_Y-5
+                if LINESEL < 0: # if pageup moves beyond top, reset to top of screen values
+                    POS = 0 
+                    LINESEL = 0
+                    TOPLINE = 0
+                    BOTTOMLINE = MAX_Y-4
                 set_select_line()
                 refresh_hits()
                 screen.move(1, curserNewPos)
                 c = screen.getch()
-            elif c == curses.KEY_PPAGE and POS == 0: # keep the page up from going too far
-                refresh_hits()        
-                screen.move(1, curserNewPos)
-                c = screen.getch()
+            # pretty sure I dont need this as well
+            # elif c == curses.KEY_PPAGE and POS <= 0: # keep the page up from going too far
+            #     refresh_hits()        
+            #     screen.move(1, curserNewPos)
+            #     c = screen.getch()
             elif c == 127: # 127 is backspace
                 if curserChange > curserMin:
                     userInput = userInput[:-1]
